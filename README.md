@@ -278,6 +278,8 @@ pip install jupyter
 jupyter notebook train.ipynb
 ```
 
+## Contribution
+Contributions are welcome! Feel free to open issues or submit pull requests
 #### Step 6: Run the Application
 
 **Development Mode:**
