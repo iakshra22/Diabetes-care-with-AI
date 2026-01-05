@@ -13,7 +13,6 @@ import sys
 import threading
 from datetime import datetime
 
-# ✅ Correct Gemini import
 import google.generativeai as genai
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +29,6 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.jinja_env.auto_reload = True
 CORS(app)
 
-# --- i18n Configuration ---
 SUPPORTED_LANGUAGES = {
     'en': 'English',
     'es': 'Español',
@@ -53,17 +51,15 @@ def get_locale():
     2. Browser's Accept-Language header
     3. Default language (English)
     """
-    # Check for user's language preference in cookie
     user_language = request.cookies.get('language')
     if user_language and user_language in SUPPORTED_LANGUAGES:
         return user_language
     
-    # Fall back to browser's preferred language
     best_match = request.accept_languages.best_match(SUPPORTED_LANGUAGES.keys())
     if best_match:
         return best_match
     
-    # Default to English
+
     return DEFAULT_LANGUAGE
 
 
@@ -100,14 +96,12 @@ def set_language():
         'language': language,
         'language_name': SUPPORTED_LANGUAGES[language]
     }))
-    
-    # Set cookie for 1 year
+
     response.set_cookie('language', language, max_age=365*24*60*60, samesite='Lax')
     
     return response
 
 
-# Flask-Mail Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
@@ -117,18 +111,14 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@di
 
 mail = Mail(app)
 
-# In-memory store for forum posts
 posts = []
 
-# In-memory store for users and notifications
-users = {}  # {user_id: {email, username, preferences, subscribed_posts}}
-notifications = []  # [{id, user_id, type, message, post_id, read, timestamp}]
+users = {} 
+notifications = [] 
 
-# Setup logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s')
 
-# --- Load ML Model and Scaler ---
 try:
     model = pickle.load(open('diabetes_model.pkl', 'rb'))
     logging.info("Diabetes model loaded successfully.")
@@ -151,7 +141,6 @@ except Exception as e:
     df = None
 
 
-# --- Gemini AI Chat Function ---
 def get_gemini_response(user_message):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
@@ -171,8 +160,6 @@ def get_gemini_response(user_message):
         logging.error(f"Gemini error: {e}")
         return "Sorry, Gemini service is unavailable right now."
 
-
-# --- Flask Routes ---
 @app.route('/')
 def root():
     return render_template('home.html')
@@ -255,7 +242,6 @@ def generate_lifestyle_plan():
     bmi = data.get('bmi')
     activity = data.get('activity')
     
-    # Validate inputs
     if not all([age, bmi, activity]):
         return jsonify({'error': 'Age, BMI, and activity level are required'}), 400
     
@@ -272,7 +258,6 @@ def generate_lifestyle_plan():
     if activity not in ['low', 'moderate', 'high']:
         return jsonify({'error': 'Activity must be low, moderate, or high'}), 400
     
-    # Determine BMI category
     if bmi < 18.5:
         bmi_category = 'underweight'
     elif bmi < 25:
@@ -282,7 +267,6 @@ def generate_lifestyle_plan():
     else:
         bmi_category = 'obese'
     
-    # Determine age group
     if age < 30:
         age_group = 'young adult'
     elif age < 50:
@@ -292,7 +276,6 @@ def generate_lifestyle_plan():
     else:
         age_group = 'senior'
     
-    # Try to get AI-generated plan
     try:
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
@@ -316,7 +299,6 @@ Keep each tip concise (1-2 sentences). Focus on diabetes-relevant advice. Format
             response = ai_model.generate_content(prompt)
             response_text = response.text
             
-            # Extract JSON from response
             import json
             json_match = re.search(r'\{[\s\S]*\}', response_text)
             if json_match:
@@ -336,7 +318,6 @@ Keep each tip concise (1-2 sentences). Focus on diabetes-relevant advice. Format
     except Exception as e:
         logging.warning(f"AI plan generation failed, using fallback: {e}")
     
-    # Fallback: Rule-based plan generation
     plan = generate_fallback_plan(age, bmi, bmi_category, activity, age_group)
     
     return jsonify({
@@ -357,7 +338,6 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
     """Generate a rule-based lifestyle plan as fallback."""
     plan = {'diet': [], 'exercise': [], 'stress': [], 'sleep': [], 'monitoring': []}
     
-    # Diet recommendations based on BMI
     if bmi_category == 'underweight':
         plan['diet'] = [
             'Increase caloric intake with nutrient-dense foods like nuts, avocados, and whole grains.',
@@ -379,7 +359,7 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Choose lean proteins and limit saturated fats.',
             'Reduce refined carbohydrates and opt for whole grain alternatives.'
         ]
-    else:  # obese
+    else:
         plan['diet'] = [
             'Work with a dietitian to create a sustainable calorie-controlled meal plan.',
             'Prioritize high-fiber foods to improve satiety and blood sugar control.',
@@ -387,7 +367,6 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Practice meal prepping to avoid unhealthy food choices.'
         ]
     
-    # Exercise recommendations based on activity level
     if activity == 'low':
         plan['exercise'] = [
             'Start with 15-20 minute walks daily and gradually increase duration.',
@@ -402,7 +381,7 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Include flexibility exercises like yoga or stretching.',
             'Try interval training to boost cardiovascular health.'
         ]
-    else:  # high
+    else: 
         plan['exercise'] = [
             'Maintain your excellent activity level with varied workouts.',
             'Ensure adequate rest days to prevent overtraining.',
@@ -410,7 +389,6 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Consider working with a trainer to optimize your routine.'
         ]
     
-    # Stress management based on age
     if age >= 50:
         plan['stress'] = [
             'Practice daily meditation or deep breathing exercises for 10-15 minutes.',
@@ -424,7 +402,6 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Practice mindfulness or use stress-management apps.'
         ]
     
-    # Sleep recommendations
     if age >= 65:
         plan['sleep'] = [
             'Aim for 7-8 hours of sleep with a consistent bedtime routine.',
@@ -438,7 +415,6 @@ def generate_fallback_plan(age, bmi, bmi_category, activity, age_group):
             'Maintain consistent sleep and wake times, even on weekends.'
         ]
     
-    # Health monitoring
     plan['monitoring'] = [
         'Check blood glucose levels as recommended by your healthcare provider.',
         'Monitor blood pressure regularly, especially if overweight.',
@@ -458,9 +434,6 @@ def chat_gemini():
     bot_response = get_gemini_response(user_message)
     return jsonify({'reply': bot_response})
 
-
-# --- Forum Backend ---
-
 def filter_posts(posts_list, search=None, start_date=None, end_date=None):
     """
     Filter posts by search term and date range.
@@ -476,16 +449,13 @@ def filter_posts(posts_list, search=None, start_date=None, end_date=None):
     """
     filtered = posts_list.copy()
     
-    # Apply search filter (case-insensitive)
     if search and search.strip():
         search_lower = search.lower()
         filtered = [p for p in filtered if search_lower in p.get('content', '').lower()]
     
-    # Apply start_date filter
     if start_date:
         filtered = [p for p in filtered if parse_post_timestamp(p.get('timestamp')) >= start_date]
     
-    # Apply end_date filter
     if end_date:
         filtered = [p for p in filtered if parse_post_timestamp(p.get('timestamp')) <= end_date]
     
@@ -500,7 +470,6 @@ def parse_post_timestamp(timestamp_str):
     if not timestamp_str:
         return datetime.min
     
-    # Remove 'Z' suffix if present and parse
     ts = timestamp_str.rstrip('Z')
     try:
         return datetime.fromisoformat(ts)
@@ -530,11 +499,9 @@ def paginate_posts(posts_list, page=1, per_page=10):
     
     total = len(posts_list)
     total_pages = math.ceil(total / per_page) if total > 0 else 1
-    
-    # Ensure page is within valid range
+
     page = max(1, min(page, total_pages))
     
-    # Calculate slice indices
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
     
@@ -555,7 +522,6 @@ def forum():
 @app.route('/api/posts', methods=['GET', 'POST'])
 def posts_api():
     if request.method == 'GET':
-        # Parse query parameters
         search = request.args.get('search', '').strip() or None
         start_date_str = request.args.get('start_date', '').strip()
         end_date_str = request.args.get('end_date', '').strip()
@@ -574,8 +540,7 @@ def posts_api():
         except ValueError:
             return jsonify({"error": "per_page must be between 1 and 50"}), 400
         
-        # Parse dates
-        start_date = None
+            start_date = None
         end_date = None
         
         if start_date_str:
@@ -587,22 +552,17 @@ def posts_api():
         if end_date_str:
             try:
                 end_date = datetime.fromisoformat(end_date_str)
-                # Set end_date to end of day for inclusive filtering
                 end_date = end_date.replace(hour=23, minute=59, second=59)
             except ValueError:
                 return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
         
-        # Validate date range
         if start_date and end_date and start_date > end_date:
             return jsonify({"error": "start_date must be before or equal to end_date"}), 400
         
-        # Sort posts by timestamp (newest first)
         sorted_posts = sorted(posts, key=lambda x: x['timestamp'], reverse=True)
         
-        # Apply filters
         filtered_posts = filter_posts(sorted_posts, search=search, start_date=start_date, end_date=end_date)
         
-        # Paginate results
         result = paginate_posts(filtered_posts, page=page, per_page=per_page)
         
         return jsonify({
@@ -619,7 +579,7 @@ def posts_api():
         data = request.json
         content = data.get('content', '').strip()
         author_id = data.get('author_id', 'anonymous')
-        parent_id = data.get('parent_id')  # For replies
+        parent_id = data.get('parent_id') 
         
         if not content:
             return jsonify({"error": "Content is required"}), 400
@@ -633,13 +593,9 @@ def posts_api():
         }
         posts.append(post)
         
-        # Process notifications asynchronously
         threading.Thread(target=process_post_notifications, args=(post,)).start()
         
         return jsonify(post), 201
-
-
-# --- Notification System ---
 
 def extract_mentions(content):
     """Extract @username mentions from post content."""
@@ -684,22 +640,19 @@ def process_post_notifications(post):
     author_id = post.get('author_id', 'anonymous')
     post_id = post.get('id')
     parent_id = post.get('parent_id')
-    
-    # Handle reply notifications
+
     if parent_id:
         parent_post = next((p for p in posts if p['id'] == parent_id), None)
         if parent_post and parent_post.get('author_id') != author_id:
             original_author = parent_post.get('author_id')
             if original_author in users:
                 user = users[original_author]
-                # Create in-app notification
                 create_notification(
                     original_author, 
                     'reply', 
                     f"Someone replied to your post",
                     post_id
                 )
-                # Send email if enabled
                 if user.get('preferences', {}).get('email_replies', True):
                     send_email_notification(
                         user['email'],
@@ -707,15 +660,12 @@ def process_post_notifications(post):
                         f"Someone replied to your post:\n\n{content[:200]}...\n\nVisit the forum to see the full reply."
                     )
     
-    # Handle mention notifications
     mentions = extract_mentions(content)
     logging.info(f"Processing mentions: {mentions}, registered users: {list(users.keys())}")
     
-    # Get author's username for the notification message
     author_username = users.get(author_id, {}).get('username', 'Someone')
     
     for username in mentions:
-        # Find user by username (case-insensitive)
         mentioned_user = next(
             (uid for uid, u in users.items() if u.get('username', '').lower() == username.lower()),
             None
@@ -737,7 +687,6 @@ def process_post_notifications(post):
                     f"You were mentioned in a post:\n\n{content[:200]}...\n\nVisit the forum to see the full post."
                 )
     
-    # Notify subscribers of the thread
     if parent_id:
         for uid, user in users.items():
             if parent_id in user.get('subscribed_posts', []) and uid != author_id:
@@ -754,14 +703,10 @@ def process_post_notifications(post):
                         f"There's new activity in a thread you're following:\n\n{content[:200]}..."
                     )
 
-
-# --- User & Notification API Endpoints ---
-
 @app.route('/api/users', methods=['GET', 'POST'])
 def users_api():
     """Register or update a user for notifications, or list all users."""
     if request.method == 'GET':
-        # Debug endpoint to see registered users
         return jsonify({"users": {uid: {"username": u.get("username"), "email": u.get("email")} for uid, u in users.items()}})
     
     data = request.json
@@ -773,12 +718,10 @@ def users_api():
         return jsonify({"error": "user_id and email are required"}), 400
     
     if user_id in users:
-        # Update existing user
         users[user_id]['email'] = email
         if username:
             users[user_id]['username'] = username
     else:
-        # Create new user
         users[user_id] = {
             'email': email,
             'username': username or user_id,
@@ -840,10 +783,8 @@ def subscribe_post(user_id, post_id):
 @app.route('/api/notifications/<user_id>', methods=['GET'])
 def get_notifications(user_id):
     """Get notifications for a user."""
-    # Allow fetching even if user not fully registered yet
     user_notifications = [n for n in notifications if n['user_id'] == user_id]
     
-    # Sort by timestamp descending
     user_notifications.sort(key=lambda x: x['timestamp'], reverse=True)
     
     unread_count = sum(1 for n in user_notifications if not n['read'])
@@ -860,13 +801,12 @@ def mark_notifications_read(user_id):
     data = request.json or {}
     notification_ids = data.get('notification_ids', [])
     mark_all = data.get('mark_all', False)
-    delete_read = data.get('delete', True)  # Delete by default
+    delete_read = data.get('delete', True)  
     
     global notifications
     count = 0
     
     if delete_read:
-        # Remove notifications instead of just marking as read
         if mark_all:
             before_count = len([n for n in notifications if n['user_id'] == user_id])
             notifications = [n for n in notifications if n['user_id'] != user_id]
@@ -876,7 +816,6 @@ def mark_notifications_read(user_id):
             notifications = [n for n in notifications if not (n['user_id'] == user_id and n['id'] in notification_ids)]
             count = before_count - len(notifications)
     else:
-        # Just mark as read
         for n in notifications:
             if n['user_id'] == user_id:
                 if mark_all or n['id'] in notification_ids:
@@ -887,7 +826,6 @@ def mark_notifications_read(user_id):
     return jsonify({"message": f"Processed {count} notifications"})
 
 
-# --- Run App ---
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
